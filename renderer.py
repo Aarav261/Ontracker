@@ -87,7 +87,10 @@ def _task_row(task: dict, unit: str, today: date, striped: bool, feedback: str |
         f'color:#666666;white-space:nowrap">{unit}</td>'
         f'<td {td};padding:9px 14px;font-size:13px;font-weight:700;'
         f'white-space:nowrap;color:#111111">{task["abbreviation"]}</td>'
-        f'<td {td};padding:9px 14px;font-size:13px;color:#222222">{task["name"]}</td>'
+        f'<td {td};padding:9px 14px;font-size:13px;color:#222222">'
+        + (f'<a href="{task["_url"]}" style="color:#1a5fa8;text-decoration:none" target="_blank">{task["name"]}</a>'
+           if task.get("_url") else task["name"])
+        + '</td>'
         f'<td {td};padding:9px 14px">{_grade_badge(task)}</td>'
         f'<td {td};padding:9px 14px">{_status_badge(task["status"])}</td>'
         f'{_deadline_html(task, today)}'

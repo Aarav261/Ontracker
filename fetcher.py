@@ -62,15 +62,18 @@ def fetch_tasks(project_id: int) -> list[dict]:
 
 def load_api_auth() -> tuple[str, dict, int | None]:
     """Return (base_url, headers, student_id) using the ontrack CLI's stored auth."""
-    candidates = list(pathlib.Path.home().glob(
-        ".local/share/uv/tools/ontrack-cli/lib/python*/site-packages"
-    ))
-    if not candidates:
-        print("Could not locate ontrack-cli site-packages for API auth.", file=sys.stderr)
-        sys.exit(1)
-
-    sys.path.insert(0, str(candidates[0]))
-    from ontrack_cli.config import load_auth_config  # type: ignore
+    try:
+        from ontrack_cli.config import load_auth_config  # type: ignore
+    except ImportError:
+        candidates = [
+            *pathlib.Path(__file__).parent.glob(".venv/lib/python*/site-packages"),
+            *pathlib.Path.home().glob(".local/share/uv/tools/ontrack-cli/lib/python*/site-packages"),
+        ]
+        if not candidates:
+            print("Could not locate ontrack-cli. Activate the project venv or install via uv.", file=sys.stderr)
+            sys.exit(1)
+        sys.path.insert(0, str(candidates[0]))
+        from ontrack_cli.config import load_auth_config  # type: ignore
 
     auth = load_auth_config()
     headers = {

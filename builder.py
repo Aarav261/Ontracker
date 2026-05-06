@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from constants import GRADE_WEIGHT, URGENT, TODO, WAITING, SUBMITTED, DONE
-from fetcher import fetch_tasks, fetch_last_feedback
+from fetcher import fetch_tasks, fetch_last_feedback, _api_auth
 
 
 def _score(task: dict, today: date) -> tuple:
@@ -28,11 +28,14 @@ def build_brief(projects: list[dict], recently_completed_days: int = 7) -> dict:
     today = date.today()
     urgent, todo, waiting, submitted, done = [], [], [], [], []
 
+    base_url, _, _ = _api_auth()
+
     for project in projects:
         project_id = project["id"]
         unit_code  = project["unit"]["code"]
 
         for task in fetch_tasks(project_id):
+            task["_url"] = f"{base_url}/projects/{project_id}/dashboard/{task['abbreviation']}"
             status = task["status"]
 
             if status in DONE:
