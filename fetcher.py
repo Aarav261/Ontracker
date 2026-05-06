@@ -92,6 +92,43 @@ def _api_auth() -> tuple[str, dict, int | None]:
     return _API_AUTH
 
 
+def fetch_task_sheet(unit_id: int, task_def_id: int) -> bytes | None:
+    """Return the task sheet PDF bytes, or None if unavailable."""
+    base_url, headers, _ = _api_auth()
+    url = f"{base_url}/api/units/{unit_id}/task_definitions/{task_def_id}/task_pdf.json"
+
+    try:
+        r = requests.get(url, headers={**headers, "Accept": "*/*"},
+                         params={"as_attachment": "true"}, timeout=15)
+        r.raise_for_status()
+    except requests.RequestException:
+        return None
+
+    if r.content[:4] != b"%PDF":
+        return None
+    return r.content
+
+
+def fetch_submission(project_id: int, task_def_id: int) -> tuple[bytes, str] | None:
+    """Return (pdf_bytes, filename) for the latest submission, or None if unavailable."""
+    base_url, headers, _ = _api_auth()
+    url = f"{base_url}/api/projects/{project_id}/task_def_id/{task_def_id}/submission"
+
+    try:
+        r = requests.get(url, headers={**headers, "Accept": "*/*"},
+                         params={"as_attachment": "true"}, timeout=15)
+        r.raise_for_status()
+    except requests.RequestException:
+        return None
+
+    if r.content[:4] != b"%PDF":
+        return None
+
+    disposition = r.headers.get("Content-Disposition", "")
+    filename = disposition.split("filename=")[-1].strip() if "filename=" in disposition else f"{task_def_id}.pdf"
+    return r.content, filename
+
+
 def fetch_last_feedback(project_id: int, task_def_id: int) -> str | None:
     """Return the most recent tutor text comment, or None."""
     base_url, headers, student_id = _api_auth()
