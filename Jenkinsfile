@@ -17,7 +17,28 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                echo "TODO: docker build -> ${IMAGE_NAME}:${IMAGE_TAG}"
+                script {
+                    env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                }
+                sh '''
+                    docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${IMAGE_NAME}:${GIT_SHA} \
+                        -t ${IMAGE_NAME}:latest .
+                '''
+                // Record a build artefact (image tags, digest, size) for traceability.
+                sh '''
+                    {
+                      echo "image: ${IMAGE_NAME}"
+                      echo "build: ${IMAGE_TAG}"
+                      echo "git_sha: ${GIT_SHA}"
+                      echo "digest: $(docker image inspect ${IMAGE_NAME}:${IMAGE_TAG} --format '{{.Id}}')"
+                      echo "size: $(docker image inspect ${IMAGE_NAME}:${IMAGE_TAG} --format '{{.Size}}') bytes"
+                      echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                    } > build-info.txt
+                    cat build-info.txt
+                '''
+                archiveArtifacts artifacts: 'build-info.txt', fingerprint: true
             }
         }
 
