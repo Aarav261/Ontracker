@@ -62,7 +62,18 @@ pipeline {
 
         stage('Code Quality') {
             steps {
-                echo 'TODO: SonarQube scan + quality gate'
+                // Scanner runs on sonar-net (reaches the SonarQube server by name) and
+                // shares Jenkins' workspace. qualitygate.wait fails the build if the gate fails.
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        docker run --rm --network sonar-net --volumes-from jenkins -w "${WORKSPACE}" \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectBaseDir=${WORKSPACE} \
+                            -Dsonar.host.url=http://sonarqube:9000 \
+                            -Dsonar.login=${SONAR_TOKEN} \
+                            -Dsonar.qualitygate.wait=true
+                    '''
+                }
             }
         }
 
