@@ -44,7 +44,19 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'TODO: ruff check + pytest --junitxml'
+                // Run inside the image we just built (deps already installed), adding
+                // pytest. --volumes-from shares Jenkins' workspace with the sibling
+                // container (bind mounts don't work under Docker-out-of-Docker).
+                sh '''
+                    docker run --rm --volumes-from jenkins -w "${WORKSPACE}" \
+                        ${IMAGE_NAME}:${IMAGE_TAG} \
+                        sh -c "pip install --quiet pytest && ruff check . && pytest -q --junitxml=test-results.xml"
+                '''
+            }
+            post {
+                always {
+                    junit 'test-results.xml'
+                }
             }
         }
 
