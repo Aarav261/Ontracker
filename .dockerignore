@@ -1,11 +1,14 @@
 config.ini
 *.db
+*.pem
+.env*
 .venv/
+venv/
+Ontrack/
+extension/node_modules/
 __pycache__/
 *.pyc
 *.pyo
-.env.dev
-.env
 .git/
 .gitignore
 README.md

@@ -79,7 +79,32 @@ pipeline {
 
         stage('Security') {
             steps {
-                echo 'TODO: bandit + pip-audit + trivy image scan'
+                sh 'mkdir -p security-reports'
+                // SAST (bandit) + dependency audit (pip-audit) inside the built image.
+                // Reports archived for review; these two are non-gating.
+                sh '''
+                    docker run --rm --volumes-from jenkins -w "${WORKSPACE}" ${IMAGE_NAME}:${IMAGE_TAG} sh -c '
+                        pip install --quiet bandit pip-audit &&
+                        bandit -r . -x ./venv,./tests,./Ontrack -ll -f txt -o security-reports/bandit.txt || true;
+                        pip-audit -r requirements.txt -o security-reports/pip-audit.txt || true;
+                        echo "--- pip-audit ---"; cat security-reports/pip-audit.txt
+                    '
+                '''
+                // Image scan (Trivy): gates the build on FIXABLE High/Critical vulnerabilities.
+                sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
+                        aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
+                        -o security-reports/trivy.txt ${IMAGE_NAME}:${IMAGE_TAG} || true
+                    cat security-reports/trivy.txt
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
+                        aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
+                        --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'security-reports/**', allowEmptyArchive: true
+                }
             }
         }
 
