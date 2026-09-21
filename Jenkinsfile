@@ -91,11 +91,12 @@ pipeline {
                     '
                 '''
                 // Image scan (Trivy): gates the build on FIXABLE High/Critical vulnerabilities.
+                // Redirect happens in Jenkins' shell (in the workspace); Trivy itself only
+                // has the docker socket, so it can't write into the workspace directly.
                 sh '''
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
                         aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
-                        -o security-reports/trivy.txt ${IMAGE_NAME}:${IMAGE_TAG} || true
-                    cat security-reports/trivy.txt
+                        ${IMAGE_NAME}:${IMAGE_TAG} | tee security-reports/trivy.txt
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
                         aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
                         --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}
