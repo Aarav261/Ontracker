@@ -9,6 +9,7 @@ import secrets
 import sentry_sdk
 from flask import Flask
 from flask_cors import CORS
+from prometheus_flask_exporter import PrometheusMetrics
 
 from core.jobs import startup
 from extensions import limiter
@@ -45,6 +46,11 @@ def create_app() -> Flask:
 
     # Register blueprints
     app.register_blueprint(main_bp)
+
+    # Prometheus metrics — exposes /metrics with request counts, latencies and
+    # process metrics. One line; scraped by the monitoring stack.
+    metrics = PrometheusMetrics(app)
+    metrics.info("ontracker_app_info", "Application info", version="1.13")
 
     # Startup logic (DB init, restore schedules, start scheduler)
     startup()

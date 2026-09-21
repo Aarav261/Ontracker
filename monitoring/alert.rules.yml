@@ -1,0 +1,23 @@
+groups:
+  - name: ontracker
+    rules:
+      # Fires when a scraped instance is unreachable — the incident simulation
+      # (stop the app container) trips this within ~30s.
+      - alert: OntrackerInstanceDown
+        expr: up{job=~"ontracker.*"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ontracker instance down ({{ $labels.job }})"
+          description: "{{ $labels.instance }} has been unreachable for 30s."
+
+      # Fires on a sustained 5xx error rate.
+      - alert: OntrackerHighErrorRate
+        expr: rate(flask_http_request_total{status=~"5.."}[1m]) > 0.2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate ({{ $labels.job }})"
+          description: "5xx rate above 0.2/s for 1 minute on {{ $labels.instance }}."

@@ -164,7 +164,28 @@ pipeline {
 
         stage('Monitoring') {
             steps {
-                echo 'TODO: Prometheus + Grafana + alert; Sentry already live'
+                // Verify the deployed app is observable and that the persistent Prometheus
+                // stack is scraping it and has alert rules loaded. (Sentry error/perf
+                // monitoring is also wired into the app via SENTRY_DSN.)
+                sh '''
+                    echo "1) App exposes Prometheus metrics:"
+                    docker run --rm --network container:ontracker-prod curlimages/curl:latest \
+                        -sf http://localhost:8000/metrics >/dev/null && echo "   prod /metrics reachable"
+
+                    echo "2) Prometheus is scraping ontracker-prod:"
+                    up=0
+                    for i in $(seq 1 12); do
+                        q=$(docker run --rm --network container:prometheus curlimages/curl:latest -s \
+                            "http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22ontracker-prod%22%7D")
+                        if echo "$q" | grep -q ',"1"]'; then echo "   Prometheus reports ontracker-prod UP"; up=1; break; fi
+                        echo "   waiting for scrape..."; sleep 5
+                    done
+                    [ "$up" = "1" ]
+
+                    echo "3) Alert rules loaded:"
+                    docker run --rm --network container:prometheus curlimages/curl:latest -s \
+                        http://localhost:9090/api/v1/rules | grep -o "OntrackerInstanceDown" | head -1
+                '''
             }
         }
     }
