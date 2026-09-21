@@ -33,3 +33,11 @@ extension-private-key.pem
 .DS_Store
 .claude/
 ontracker.zip
+
+# Jenkins pipeline artifacts
+coverage.xml
+.coverage
+test-results.xml
+build-info.txt
+release-info.txt
+security-reports/

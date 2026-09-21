@@ -50,7 +50,7 @@ pipeline {
                 sh '''
                     docker run --rm --volumes-from jenkins -w "${WORKSPACE}" \
                         ${IMAGE_NAME}:${IMAGE_TAG} \
-                        sh -c "pip install --quiet pytest && ruff check . && pytest -q --junitxml=test-results.xml"
+                        sh -c "pip install --quiet pytest pytest-cov && ruff check . && pytest -q --junitxml=test-results.xml --cov=app --cov=extensions --cov=core --cov=routes --cov-report=xml:coverage.xml --cov-report=term"
                 '''
             }
             post {
