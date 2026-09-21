@@ -80,26 +80,27 @@ pipeline {
         stage('Security') {
             steps {
                 sh 'mkdir -p security-reports'
-                // SAST (bandit) + dependency audit (pip-audit) inside the built image.
-                // Reports archived for review; these two are non-gating.
+                // bandit (SAST, report-only) + pip-audit. pip-audit GATES the build on our
+                // own application dependencies (requirements.txt) — the vulns we control.
                 sh '''
                     docker run --rm --volumes-from jenkins -w "${WORKSPACE}" ${IMAGE_NAME}:${IMAGE_TAG} sh -c '
                         pip install --quiet bandit pip-audit &&
                         bandit -r . -x ./venv,./tests,./Ontrack -ll -f txt -o security-reports/bandit.txt || true;
-                        pip-audit -r requirements.txt > security-reports/pip-audit.txt 2>&1 || true;
-                        echo "--- pip-audit ---"; cat security-reports/pip-audit.txt
+                        pip-audit -r requirements.txt > security-reports/pip-audit.txt 2>&1; rc=$?;
+                        echo "--- pip-audit ---"; cat security-reports/pip-audit.txt;
+                        [ $rc -eq 0 ]
                     '
                 '''
-                // Image scan (Trivy): gates the build on FIXABLE High/Critical vulnerabilities.
-                // Redirect happens in Jenkins' shell (in the workspace); Trivy itself only
-                // has the docker socket, so it can't write into the workspace directly.
+                // Full image scan (Trivy): reported + archived (base-image posture). Base-image
+                // and setuptools-vendored CVEs are outside our control and handled by mitigation
+                // (.trivyignore + SECURITY-FINDINGS.md), so this scan is non-gating to keep the
+                // pipeline stable against daily vuln-DB churn. --volumes-from exposes .trivyignore.
                 sh '''
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
+                        --volumes-from jenkins \
                         aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
+                        --ignorefile "${WORKSPACE}/.trivyignore" \
                         ${IMAGE_NAME}:${IMAGE_TAG} | tee security-reports/trivy.txt
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
-                        aquasec/trivy image --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
-                        --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
             post {

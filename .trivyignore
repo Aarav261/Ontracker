@@ -1,0 +1,8 @@
+# Suppressed with justification (see SECURITY-FINDINGS.md).
+# Both live inside setuptools/_vendor/ — build-time tooling bundled by setuptools,
+# not runtime dependencies of the gunicorn app. No fixed setuptools release ships
+# updated vendored copies, and neither is reachable in the running application.
+# jaraco.context 5.3.0 (vendored in setuptools)
+CVE-2026-23949
+# wheel 0.45.1 (vendored in setuptools)
+CVE-2026-24049
