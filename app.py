@@ -48,9 +48,13 @@ def create_app() -> Flask:
     app.register_blueprint(main_bp)
 
     # Prometheus metrics — exposes /metrics with request counts, latencies and
-    # process metrics. One line; scraped by the monitoring stack.
-    metrics = PrometheusMetrics(app)
-    metrics.info("ontracker_app_info", "Application info", version="1.13")
+    # process metrics. Guarded because the test suite builds the app repeatedly
+    # against the global registry, which would otherwise raise DuplicateTimeseries.
+    try:
+        metrics = PrometheusMetrics(app)
+        metrics.info("ontracker_app_info", "Application info", version="1.13")
+    except ValueError:
+        pass
 
     # Startup logic (DB init, restore schedules, start scheduler)
     startup()
