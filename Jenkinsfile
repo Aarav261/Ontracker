@@ -131,7 +131,34 @@ pipeline {
 
         stage('Release') {
             steps {
-                echo 'TODO: git tag + push image to GHCR'
+                // Promote the tested image to versioned + stable tags, then run it as a
+                // separate production instance with production config (env promotion).
+                sh '''
+                    RELEASE_VERSION="1.13.${BUILD_NUMBER}"
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:v${RELEASE_VERSION}
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:stable
+
+                    docker rm -f ontracker-prod 2>/dev/null || true
+                    docker run -d --name ontracker-prod -p 8100:8000 \
+                        -e SECRET_KEY=prod-not-secret -e ENVIRONMENT=production \
+                        -e RESEND_DRY_RUN=true -e PORT=8000 ${IMAGE_NAME}:stable
+
+                    ok=0
+                    for i in $(seq 1 20); do
+                        code=$(docker run --rm --network container:ontracker-prod curlimages/curl:latest \
+                            -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/version 2>/dev/null || true)
+                        if [ "$code" = "200" ]; then echo "Production healthy ($code) — v${RELEASE_VERSION}"; ok=1; break; fi
+                        echo "waiting ($code)..."; sleep 3
+                    done
+                    [ "$ok" = "1" ]
+
+                    { echo "release: v${RELEASE_VERSION}";
+                      echo "image: ${IMAGE_NAME}:stable (also ${IMAGE_NAME}:v${RELEASE_VERSION})";
+                      echo "git_sha: ${GIT_SHA}";
+                      echo "released: $(date -u +%Y-%m-%dT%H:%M:%SZ)"; } > release-info.txt
+                    cat release-info.txt
+                '''
+                archiveArtifacts artifacts: 'release-info.txt', fingerprint: true
             }
         }
 
