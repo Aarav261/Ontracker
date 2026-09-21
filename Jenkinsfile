@@ -86,7 +86,7 @@ pipeline {
                     docker run --rm --volumes-from jenkins -w "${WORKSPACE}" ${IMAGE_NAME}:${IMAGE_TAG} sh -c '
                         pip install --quiet bandit pip-audit &&
                         bandit -r . -x ./venv,./tests,./Ontrack -ll -f txt -o security-reports/bandit.txt || true;
-                        pip-audit -r requirements.txt -o security-reports/pip-audit.txt || true;
+                        pip-audit -r requirements.txt > security-reports/pip-audit.txt 2>&1 || true;
                         echo "--- pip-audit ---"; cat security-reports/pip-audit.txt
                     '
                 '''
