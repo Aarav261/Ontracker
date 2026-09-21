@@ -112,7 +112,20 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'TODO: docker compose up -d (staging) + health check'
+                // Deploy the built image to a staging stack (web + Postgres) via compose,
+                // then gate on a health check hit from inside the compose network.
+                sh '''
+                    docker compose -p ontracker-staging -f docker-compose.staging.yml up -d --force-recreate
+                    echo "Waiting for staging health..."
+                    ok=0
+                    for i in $(seq 1 30); do
+                        code=$(docker run --rm --network ontracker-staging_default curlimages/curl:latest \
+                            -s -o /dev/null -w "%{http_code}" http://web:8000/api/version 2>/dev/null || true)
+                        if [ "$code" = "200" ]; then echo "Staging healthy ($code)"; ok=1; break; fi
+                        echo "waiting ($code)..."; sleep 3
+                    done
+                    [ "$ok" = "1" ]
+                '''
             }
         }
 

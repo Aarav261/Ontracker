@@ -1,0 +1,31 @@
+# Staging deployment for the Jenkins pipeline. Runs the prebuilt image (no build,
+# no source mounts) against a dedicated Postgres. Env is inline so it needs no
+# gitignored .env file. Ports avoid host clashes (5432 is used by other apps).
+services:
+  web:
+    image: ontracker:${IMAGE_TAG:-latest}
+    ports:
+      - "8090:8000"
+    environment:
+      SECRET_KEY: staging-not-secret
+      DATABASE_URL: postgresql://ontrackadmin:localdev123@db/ontrackbrief_staging
+      ENVIRONMENT: staging
+      RESEND_DRY_RUN: "true"
+      PORT: "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ontrackadmin
+      POSTGRES_PASSWORD: localdev123
+      POSTGRES_DB: ontrackbrief_staging
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ontrackadmin -d ontrackbrief_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
