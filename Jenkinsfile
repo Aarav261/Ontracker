@@ -1,5 +1,3 @@
-// Ontracker CI/CD pipeline (SIT223/SIT753 7.3HD)
-// Scaffold: all 7 stages present as stubs. Each stage is filled in one at a time.
 pipeline {
     agent any
 
@@ -91,10 +89,7 @@ pipeline {
                         [ $rc -eq 0 ]
                     '
                 '''
-                // Full image scan (Trivy): reported + archived (base-image posture). Base-image
-                // and setuptools-vendored CVEs are outside our control and handled by mitigation
-                // (.trivyignore + SECURITY-FINDINGS.md), so this scan is non-gating to keep the
-                // pipeline stable against daily vuln-DB churn. --volumes-from exposes .trivyignore.
+               
                 sh '''
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ \
                         --volumes-from jenkins \
@@ -165,8 +160,7 @@ pipeline {
         stage('Monitoring') {
             steps {
                 // Verify the deployed app is observable and that the persistent Prometheus
-                // stack is scraping it and has alert rules loaded. (Sentry error/perf
-                // monitoring is also wired into the app via SENTRY_DSN.)
+               
                 sh '''
                     echo "1) App exposes Prometheus metrics:"
                     docker run --rm --network container:ontracker-prod curlimages/curl:latest \
